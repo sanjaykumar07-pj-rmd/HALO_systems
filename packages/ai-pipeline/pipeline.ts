@@ -40,15 +40,42 @@ export interface PipelineResult {
 }
 
 /**
+ * Sanitize and validate user-submitted text to prevent prompt injection 
+ * and buffer overflows. 
+ */
+export function sanitizeInput(text: string): string {
+  if (!text) return "";
+  // Strip control characters and basic HTML tags to prevent injection/XSS
+  let sanitized = text.replace(/[\x00-\x1F\x7F]/g, '');
+  sanitized = sanitized.replace(/<[^>]*>/g, '');
+  // Limit length to prevent DoS via massive context
+  if (sanitized.length > 1000) {
+    sanitized = sanitized.substring(0, 1000);
+  }
+  return sanitized.trim();
+}
+
+/**
  * Run the full Crisis-Bridge pipeline.
  * Returns structured results from all three agents.
  */
 export async function runCrisisBridgePipeline(
   input: PipelineInput
 ): Promise<PipelineResult> {
+  // ── Input Validation & Sanitization ─────────────────────
+  const sanitizedText = sanitizeInput(input.rawText);
+  if (!sanitizedText) {
+    return {
+      intake: {} as IntakeResult,
+      priority: {} as PrioritizedIncident,
+      dispatch: null,
+      error: "Input text is empty or invalid after sanitization."
+    };
+  }
+
   // ── Stage 1: Agent A — Intake ───────────────────────────
   console.log('[Pipeline] Stage 1: Running Intake Agent...');
-  const intake = await runIntakeAgent(input.rawText, input.geminiApiKey);
+  const intake = await runIntakeAgent(sanitizedText, input.geminiApiKey);
   console.log(`[Pipeline] Intake complete: ${intake.incident_type} at ${intake.location} (${intake.detected_language})`);
 
   // Generate a temporary ID for this incident
