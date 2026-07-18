@@ -55,6 +55,7 @@ export interface Incident {
   assigned_at?: string;
   resolved_at?: string;
   eta_minutes?: number;
+  ai_reasoning?: string;     // AI Analysis provided by agents
   confidence: number;        // AI confidence 0-1
   created_at: string;
 }
